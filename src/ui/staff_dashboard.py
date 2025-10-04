@@ -176,15 +176,57 @@ class StaffDashboard(ttk.Frame):
             )
             self.bill_button.pack(fill=tk.X, pady=(0, 10))
         
-            # Top section - Item search
-            search_section = ttk.LabelFrame(left_main_frame, text="Item Search", padding="15")
+            # Top section - Item search and barcode scanning
+            search_section = ttk.LabelFrame(left_main_frame, text="Item Search & Barcode Scanner", padding="15")
             search_section.pack(fill=tk.X, pady=(0, 20))
             
-            # Search frame with larger input
+            # Barcode Scanner Section
+            barcode_frame = ttk.LabelFrame(search_section, text="📱 Barcode Scanner (Auto-Add to Cart)", padding="10")
+            barcode_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            ttk.Label(barcode_frame, text="Scan barcode with scanner device:", font=("Arial", 11, "bold")).pack(anchor="w", pady=(0, 5))
+            
+            # Barcode input field - this will receive scanner input
+            self.barcode_var = tk.StringVar()
+            self.barcode_entry = ttk.Entry(
+                barcode_frame, 
+                textvariable=self.barcode_var, 
+                font=("Arial", 14),
+                foreground="blue"
+            )
+            self.barcode_entry.pack(fill=tk.X, pady=(0, 5))
+            self.barcode_entry.bind('<KeyRelease>', self.on_barcode_input)
+            self.barcode_entry.bind('<FocusIn>', lambda e: self.barcode_entry.select_range(0, tk.END))
+            
+            # Barcode status label
+            self.barcode_status_label = ttk.Label(
+                barcode_frame, 
+                text="Ready to scan barcode...", 
+                font=("Arial", 10),
+                foreground="gray"
+            )
+            self.barcode_status_label.pack(anchor="w")
+            
+            # Manual add button for barcode entry
+            manual_add_frame = ttk.Frame(barcode_frame)
+            manual_add_frame.pack(fill=tk.X, pady=(5, 0))
+            
+            manual_add_button = ttk.Button(
+                manual_add_frame,
+                text="Add to Cart",
+                command=self.manual_add_barcode_item,
+                width=12
+            )
+            manual_add_button.pack(side=tk.RIGHT)
+            
+            # Separator
+            ttk.Separator(search_section, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
+            
+            # Manual Search Section
             search_frame = ttk.Frame(search_section)
             search_frame.pack(fill=tk.X)
             
-            ttk.Label(search_frame, text="Enter Item Code:", font=("Arial", 12, "bold")).pack(anchor="w", pady=(0, 5))
+            ttk.Label(search_frame, text="Or manually enter Item Code:", font=("Arial", 12, "bold")).pack(anchor="w", pady=(0, 5))
             
             # Large search input with button
             search_input_frame = ttk.Frame(search_frame)
@@ -371,9 +413,14 @@ class StaffDashboard(ttk.Frame):
             
             # Store references
             self.current_selected_item = None
+            self.barcode_scan_timer = None
+            self.barcode_input_buffer = ""
             
             # Initialize stats
             self.refresh_stats()
+            
+            # Focus on barcode entry for immediate scanning
+            self.barcode_entry.focus()
             
         except Exception as e:
             print(f"Error creating staff dashboard widgets: {e}")
@@ -449,6 +496,219 @@ class StaffDashboard(ttk.Frame):
                 self.quantity_var.set(str(current_qty - 1))
         except ValueError:
             self.quantity_var.set("1")
+    
+    def on_barcode_input(self, event=None):
+        """Handle barcode scanner input - detect when barcode is scanned"""
+        try:
+            # Get current input
+            current_input = self.barcode_var.get()
+            
+            # If input is empty, reset buffer
+            if not current_input:
+                self.barcode_input_buffer = ""
+                self.barcode_scan_timer = None
+                return
+            
+            # Add to buffer
+            self.barcode_input_buffer = current_input
+            
+            # Clear any existing timer
+            if self.barcode_scan_timer:
+                self.after_cancel(self.barcode_scan_timer)
+            
+            # Set timer to detect end of barcode scan (typically 100ms after last input)
+            self.barcode_scan_timer = self.after(100, self.process_barcode_scan)
+            
+            # Update status
+            self.barcode_status_label.config(
+                text=f"Scanning... ({len(current_input)} characters)", 
+                foreground="orange"
+            )
+            
+        except Exception as e:
+            print(f"Error in barcode input: {e}")
+    
+    def process_barcode_scan(self):
+        """Process the scanned barcode and add item to cart automatically"""
+        try:
+            if not self.barcode_input_buffer:
+                return
+            
+            item_code = self.barcode_input_buffer.strip()
+            
+            # Clear the input field
+            self.barcode_var.set("")
+            self.barcode_input_buffer = ""
+            
+            # Update status
+            self.barcode_status_label.config(
+                text=f"Processing barcode: {item_code}", 
+                foreground="blue"
+            )
+            
+            # Search item in database
+            item = self.db_manager.get_item_by_code(item_code)
+            
+            if item:
+                # Automatically add to cart with quantity 1
+                cart_item = {
+                    'item_id': item['id'],
+                    'item_code': item['item_code'],
+                    'item_name': item['item_name'],
+                    'quantity': 1,
+                    'unit_price': item['price'],
+                    'total_price': item['price']
+                }
+                
+                # Check if item already in cart
+                item_already_in_cart = False
+                for i, existing_item in enumerate(self.cart_items):
+                    if existing_item['item_id'] == item['id']:
+                        # Update existing item quantity
+                        self.cart_items[i]['quantity'] += 1
+                        self.cart_items[i]['total_price'] = (
+                            self.cart_items[i]['quantity'] * self.cart_items[i]['unit_price']
+                        )
+                        item_already_in_cart = True
+                        break
+                
+                if not item_already_in_cart:
+                    # Add new item to cart
+                    self.cart_items.append(cart_item)
+                
+                # Update cart display
+                self.update_cart_display()
+                
+                # Update status
+                self.barcode_status_label.config(
+                    text=f"✅ Added: {item['item_name']} (₹{item['price']:.2f})", 
+                    foreground="green"
+                )
+                
+                # Reset status after 3 seconds
+                self.after(3000, lambda: self.barcode_status_label.config(
+                    text="Ready to scan barcode...", 
+                    foreground="gray"
+                ))
+                
+                # Focus back to barcode entry for next scan
+                self.barcode_entry.focus()
+                
+            else:
+                # Item not found
+                self.barcode_status_label.config(
+                    text=f"❌ Item not found: {item_code}", 
+                    foreground="red"
+                )
+                
+                # Reset status after 3 seconds
+                self.after(3000, lambda: self.barcode_status_label.config(
+                    text="Ready to scan barcode...", 
+                    foreground="gray"
+                ))
+                
+                # Focus back to barcode entry
+                self.barcode_entry.focus()
+        
+        except Exception as e:
+            print(f"Error processing barcode scan: {e}")
+            self.barcode_status_label.config(
+                text=f"Error: {str(e)}", 
+                foreground="red"
+            )
+            # Focus back to barcode entry
+            self.barcode_entry.focus()
+    
+    def manual_add_barcode_item(self):
+        """Manually add item from barcode input field"""
+        try:
+            item_code = self.barcode_var.get().strip()
+            if not item_code:
+                messagebox.showerror("Error", "Please enter an item code")
+                return
+            
+            # Clear the input field
+            self.barcode_var.set("")
+            self.barcode_input_buffer = ""
+            
+            # Update status
+            self.barcode_status_label.config(
+                text=f"Processing: {item_code}", 
+                foreground="blue"
+            )
+            
+            # Search item in database
+            item = self.db_manager.get_item_by_code(item_code)
+            
+            if item:
+                # Automatically add to cart with quantity 1
+                cart_item = {
+                    'item_id': item['id'],
+                    'item_code': item['item_code'],
+                    'item_name': item['item_name'],
+                    'quantity': 1,
+                    'unit_price': item['price'],
+                    'total_price': item['price']
+                }
+                
+                # Check if item already in cart
+                item_already_in_cart = False
+                for i, existing_item in enumerate(self.cart_items):
+                    if existing_item['item_id'] == item['id']:
+                        # Update existing item quantity
+                        self.cart_items[i]['quantity'] += 1
+                        self.cart_items[i]['total_price'] = (
+                            self.cart_items[i]['quantity'] * self.cart_items[i]['unit_price']
+                        )
+                        item_already_in_cart = True
+                        break
+                
+                if not item_already_in_cart:
+                    # Add new item to cart
+                    self.cart_items.append(cart_item)
+                
+                # Update cart display
+                self.update_cart_display()
+                
+                # Update status
+                self.barcode_status_label.config(
+                    text=f"✅ Added: {item['item_name']} (₹{item['price']:.2f})", 
+                    foreground="green"
+                )
+                
+                # Reset status after 3 seconds
+                self.after(3000, lambda: self.barcode_status_label.config(
+                    text="Ready to scan barcode...", 
+                    foreground="gray"
+                ))
+                
+                # Focus back to barcode entry for next scan
+                self.barcode_entry.focus()
+                
+            else:
+                # Item not found
+                self.barcode_status_label.config(
+                    text=f"❌ Item not found: {item_code}", 
+                    foreground="red"
+                )
+                
+                # Reset status after 3 seconds
+                self.after(3000, lambda: self.barcode_status_label.config(
+                    text="Ready to scan barcode...", 
+                    foreground="gray"
+                ))
+                
+                # Focus back to barcode entry
+                self.barcode_entry.focus()
+        
+        except Exception as e:
+            print(f"Error in manual barcode add: {e}")
+            self.barcode_status_label.config(
+                text=f"Error: {str(e)}", 
+                foreground="red"
+            )
+            # Focus back to barcode entry
+            self.barcode_entry.focus()
     
     def search_item(self, event=None):
         """Search for item by code"""
@@ -606,6 +866,13 @@ class StaffDashboard(ttk.Frame):
             self.cart_items = []
             self.update_cart_display()
             self.remove_item_button.config(state=tk.DISABLED)
+            # Reset barcode status
+            self.barcode_status_label.config(
+                text="Ready to scan barcode...", 
+                foreground="gray"
+            )
+            # Focus back to barcode entry
+            self.barcode_entry.focus()
     
     def generate_bill(self):
         """Generate bill for cart items - automatically save and print"""
@@ -622,20 +889,15 @@ class StaffDashboard(ttk.Frame):
             total_items = len(self.cart_items)
             total_quantity = sum(item['quantity'] for item in self.cart_items)
             
-            # Show processing message
+            # Show processing message (brief)
             payment_icons = {"cash": "💵", "upi": "📱", "card": "💳"}
             payment_icon = payment_icons.get(payment_method, "💰")
             
-            messagebox.showinfo("Processing Bill", f"""
-🧾 GENERATING BILL...
-
-📦 Items: {total_items}
-🔢 Quantity: {total_quantity}
-💰 Total Amount: ₹{total_amount:.2f}
-{payment_icon} Payment Method: {payment_method.upper()}
-
-Saving to database and printing...
-            """)
+            # Update status immediately
+            self.barcode_status_label.config(
+                text=f"Generating bill... ₹{total_amount:.2f}", 
+                foreground="blue"
+            )
             
             # Generate bill number
             bill_number = self.db_manager.get_next_bill_number()
@@ -674,11 +936,20 @@ Saving to database and printing...
                         self.update_cart_display()
                         self.remove_item_button.config(state=tk.DISABLED)
                         
-                        # Automatically print the bill
-                        self.print_bill_automatically(pdf_path, bill_number, total_amount, payment_method, payment_icon)
+                        # Reset barcode status
+                        self.barcode_status_label.config(
+                            text="Ready to scan barcode...", 
+                            foreground="gray"
+                        )
+                        
+                        # Automatically print and open the bill
+                        self.print_and_open_bill(pdf_path, bill_number, total_amount, payment_method, payment_icon)
                         
                         # Refresh stats after bill generation
                         self.refresh_stats()
+                        
+                        # Focus back to barcode entry for next transaction
+                        self.barcode_entry.focus()
                     else:
                         messagebox.showerror("Error", "Bill generated but PDF creation failed")
                 else:
@@ -689,6 +960,131 @@ Saving to database and printing...
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate bill: {str(e)}")
     
+    def print_and_open_bill(self, pdf_path, bill_number, total_amount, payment_method, payment_icon):
+        """Automatically open bill for printing and show success message"""
+        try:
+            import subprocess
+            import platform
+            import os
+            
+            print(f"Auto-opening bill: {pdf_path}")
+            
+            # Check if file exists
+            if not os.path.exists(pdf_path):
+                messagebox.showerror("Print Error", "Bill file not found!")
+                return
+            
+            # Get the operating system
+            system = platform.system()
+            
+            # Always open the PDF for printing/viewing
+            if system == "Windows":
+                try:
+                    # Open PDF with default application for printing
+                    subprocess.run(['start', '/min', pdf_path], shell=True, check=True)
+                    
+                    # Show success message
+                    messagebox.showinfo("Bill Generated Successfully", f"""
+✅ BILL GENERATED & SAVED TO DATABASE!
+
+🧾 Bill Number: {bill_number}
+💰 Amount: ₹{total_amount:.2f}
+{payment_icon} Payment: {payment_method.upper()}
+💾 Database: Bill saved successfully
+📄 File: {os.path.basename(pdf_path)}
+
+The bill has been opened for printing.
+                    """)
+                    
+                except subprocess.CalledProcessError:
+                    # Fallback: open with default PDF viewer
+                    import webbrowser
+                    webbrowser.open(pdf_path)
+                    messagebox.showinfo("Bill Generated Successfully", f"""
+✅ BILL GENERATED & SAVED TO DATABASE!
+
+🧾 Bill Number: {bill_number}
+💰 Amount: ₹{total_amount:.2f}
+{payment_icon} Payment: {payment_method.upper()}
+💾 Database: Bill saved successfully
+📄 PDF: Opened in viewer
+
+File: {os.path.basename(pdf_path)}
+                    """)
+                    
+            elif system == "Darwin":  # macOS
+                subprocess.run(['open', pdf_path], check=True)
+                messagebox.showinfo("Bill Generated Successfully", f"""
+✅ BILL GENERATED & SAVED TO DATABASE!
+
+🧾 Bill Number: {bill_number}
+💰 Amount: ₹{total_amount:.2f}
+{payment_icon} Payment: {payment_method.upper()}
+💾 Database: Bill saved successfully
+📄 File: {os.path.basename(pdf_path)}
+
+The bill has been opened for printing.
+                """)
+                
+            elif system == "Linux":
+                subprocess.run(['xdg-open', pdf_path], check=True)
+                messagebox.showinfo("Bill Generated Successfully", f"""
+✅ BILL GENERATED & SAVED TO DATABASE!
+
+🧾 Bill Number: {bill_number}
+💰 Amount: ₹{total_amount:.2f}
+{payment_icon} Payment: {payment_method.upper()}
+💾 Database: Bill saved successfully
+📄 File: {os.path.basename(pdf_path)}
+
+The bill has been opened for printing.
+                """)
+                
+            else:
+                # Fallback for other systems
+                import webbrowser
+                webbrowser.open(pdf_path)
+                messagebox.showinfo("Bill Generated Successfully", f"""
+✅ BILL GENERATED & SAVED TO DATABASE!
+
+🧾 Bill Number: {bill_number}
+💰 Amount: ₹{total_amount:.2f}
+{payment_icon} Payment: {payment_method.upper()}
+💾 Database: Bill saved successfully
+📄 PDF: Opened in viewer
+
+File: {os.path.basename(pdf_path)}
+                """)
+                
+        except Exception as e:
+            print(f"Auto-open error: {e}")
+            # Fallback: open PDF viewer
+            try:
+                import webbrowser
+                webbrowser.open(pdf_path)
+                messagebox.showinfo("Bill Generated Successfully", f"""
+✅ BILL GENERATED & SAVED TO DATABASE!
+
+🧾 Bill Number: {bill_number}
+💰 Amount: ₹{total_amount:.2f}
+{payment_icon} Payment: {payment_method.upper()}
+💾 Database: Bill saved successfully
+📄 PDF: Opened in viewer
+
+File: {os.path.basename(pdf_path)}
+                """)
+            except Exception as fallback_error:
+                messagebox.showinfo("Bill Generated Successfully", f"""
+✅ BILL GENERATED & SAVED TO DATABASE!
+
+🧾 Bill Number: {bill_number}
+💰 Amount: ₹{total_amount:.2f}
+{payment_icon} Payment: {payment_method.upper()}
+💾 Database: Bill saved successfully
+
+File: {os.path.basename(pdf_path)}
+                """)
+
     def print_bill_automatically(self, pdf_path, bill_number, total_amount, payment_method, payment_icon):
         """Automatically print bill to connected printer"""
         try:

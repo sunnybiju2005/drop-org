@@ -7,13 +7,14 @@ A comprehensive desktop billing application for clothing shops built with Python
 ### Admin Features
 - **Login System**: Secure admin and staff authentication
 - **Dashboard**: Overview with sales statistics and recent bills
-- **Item Management**: Add, edit, delete items with QR code generation
+- **Item Management**: Add, edit, delete items with barcode generation
 - **Billing History**: View, filter, and export billing data
 - **Settings**: Configure shop information and application preferences
 - **Theme Support**: Light and dark mode themes
 - **Data Persistence**: All data stored in SQLite database
 
 ### Staff Features
+- **Barcode Scanner**: Automatic item addition to cart by scanning barcodes
 - **Item Search**: Search items by code for quick billing
 - **Shopping Cart**: Add multiple items with quantities
 - **Payment Methods**: Support for Cash, UPI, and Card payments
@@ -21,8 +22,12 @@ A comprehensive desktop billing application for clothing shops built with Python
 - **Real-time Calculations**: Automatic total calculations
 
 ### Technical Features
-- **QR Code Generation**: Generate and download QR codes for items
+- **Barcode Generation**: Generate and download barcodes for items
+- **Barcode Scanning**: Support for USB barcode scanners with auto-add to cart
+- **Manual Code Entry**: Type item codes manually with instant cart addition
 - **PDF Bill Generation**: Professional bill format matching shop requirements
+- **Instant Bill Processing**: Automatic save and print without confirmations
+- **Easy Date Selection**: Calendar picker with quick date buttons
 - **Data Export**: Export billing data to CSV format
 - **Responsive UI**: Modern, user-friendly interface
 - **Database Management**: Robust SQLite database with proper relationships
@@ -51,6 +56,30 @@ A comprehensive desktop billing application for clothing shops built with Python
    python main.py
    ```
 
+## Barcode Scanner Setup
+
+### Hardware Requirements
+- USB Barcode Scanner (keyboard wedge type)
+- Generated barcodes printed and attached to items
+
+### Scanner Configuration
+Most USB barcode scanners work as "keyboard wedge" devices, meaning they input scanned data as if typed from a keyboard. No additional drivers are needed.
+
+### Usage Instructions
+1. **Connect Scanner**: Plug USB barcode scanner into computer
+2. **Generate Barcodes**: Use Admin → Item Management → Generate Barcode for each item
+3. **Print & Attach**: Print barcodes and attach to clothing items
+4. **Scan Items**: In Staff Billing, focus is automatically on barcode input field
+5. **Auto-Add**: Scanned items are automatically added to cart with quantity 1
+6. **Multiple Scans**: Scanning the same item multiple times increases quantity
+
+### Scanner Features
+- **Auto-Detection**: Automatically detects when barcode scanning is complete
+- **Manual Entry**: Enter item codes manually and click "Add to Cart" button
+- **Real-time Status**: Shows scanning progress and item addition status
+- **Error Handling**: Displays clear messages for invalid/unfound barcodes
+- **Focus Management**: Automatically returns focus to scanner input after each scan
+
 ## Professional Desktop Application
 
 This is a professional desktop application that opens with a main selection window offering two clear options: Admin Login or Staff Billing.
@@ -69,7 +98,7 @@ This is a professional desktop application that opens with a main selection wind
 
 1. **Launch Application**: Opens with "DROP" main selection window
 2. **Choose Access Type**: Click "ADMIN LOGIN" or "STAFF BILLING"
-3. **Admin Setup**: Login with credentials → Configure shop info, add items, generate QR codes
+3. **Admin Setup**: Login with credentials → Configure shop info, add items, generate barcodes
 4. **Staff Setup**: Direct access to billing interface - no setup needed
 
 ### Daily Operations
@@ -84,7 +113,7 @@ This is a professional desktop application that opens with a main selection wind
 ### Admin Features
 
 1. **Dashboard**: Monitor daily and monthly sales
-2. **Item Management**: Add new items, update prices, generate QR codes
+2. **Item Management**: Add new items, update prices, generate barcodes
 3. **Billing History**: Check billing history and export data
 4. **Settings**: Configure themes and application preferences
 5. **Reports**: View and export sales reports
@@ -92,10 +121,13 @@ This is a professional desktop application that opens with a main selection wind
 ### Staff Features
 
 1. **Direct Access**: No login required for immediate billing
-2. **Item Search**: Quick item lookup by code
-3. **Cart Management**: Add/remove items and adjust quantities
-4. **Payment Processing**: Support for Cash, UPI, and Card payments
-5. **Bill Generation**: Professional PDF bills with shop branding
+2. **Barcode Scanning**: Connect USB barcode scanner for automatic item addition
+3. **Manual Entry**: Type item codes and click "Add to Cart" for manual entry
+4. **Item Search**: Quick item lookup by code (manual fallback)
+5. **Cart Management**: Add/remove items and adjust quantities
+6. **Payment Processing**: Support for Cash, UPI, and Card payments
+7. **Instant Bill Generation**: Bills save automatically and open for printing
+8. **Professional PDF Bills**: Shop-branded bills with automatic printing
 
 ## File Structure
 
@@ -114,7 +146,7 @@ drop-org/
 │   └── utils/           # Utility functions
 └── assets/              # Generated files
     ├── bills/           # Generated bill PDFs
-    └── qr_codes/        # Generated QR code images
+    └── qr_codes/        # Generated barcode images
 ```
 
 ## Database Schema
@@ -138,7 +170,7 @@ The application uses SQLite with the following main tables:
 ### Item Management
 - Add custom item codes
 - Set individual prices
-- Generate QR codes for inventory management
+- Generate barcodes for inventory management
 
 ### Theme Customization
 - Switch between light and dark themes
@@ -172,7 +204,7 @@ This project is proprietary software. All rights reserved.
 
 - **v1.0.0**: Initial release with core billing functionality
 - Complete admin and staff interfaces
-- QR code generation and management
+- Barcode generation and management
 - PDF bill generation
 - Database persistence
 - Theme support

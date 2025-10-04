@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """
 Item Management Window for DROP Clothing Shop Billing Application
-Handles CRUD operations for items with QR code generation
+Handles CRUD operations for items with barcode generation
 """
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from typing import Dict, List, Optional
 import os
-import qrcode
+from barcode import Code128
+from barcode.writer import ImageWriter
 from PIL import Image, ImageTk
-import webbrowser
 
 from src.database.database_manager import DatabaseManager
 from src.config.config import Config
@@ -50,7 +49,7 @@ class ItemManagementWindow(ttk.Frame):
         self.search_entry.bind('<KeyRelease>', self.filter_items)
         
         # Items treeview
-        columns = ("Code", "Name", "Price", "QR")
+        columns = ("Code", "Name", "Price", "Barcode")
         self.items_tree = ttk.Treeview(left_frame, columns=columns, show="headings", height=15)
         
         for col in columns:
@@ -78,32 +77,32 @@ class ItemManagementWindow(ttk.Frame):
         # Item form
         self.create_item_form(right_frame)
         
-        # QR code preview frame
-        qr_frame = ttk.LabelFrame(right_frame, text="QR Code Preview", padding="10")
-        qr_frame.pack(fill=tk.X, pady=(20, 0))
+        # Barcode preview frame
+        barcode_frame = ttk.LabelFrame(right_frame, text="Barcode Preview", padding="10")
+        barcode_frame.pack(fill=tk.X, pady=(20, 0))
         
-        self.qr_label = ttk.Label(qr_frame, text="No item selected")
-        self.qr_label.pack()
+        self.barcode_label = ttk.Label(barcode_frame, text="No item selected")
+        self.barcode_label.pack()
         
-        # QR code buttons
-        qr_buttons_frame = ttk.Frame(qr_frame)
-        qr_buttons_frame.pack(fill=tk.X, pady=(10, 0))
+        # Barcode buttons
+        barcode_buttons_frame = ttk.Frame(barcode_frame)
+        barcode_buttons_frame.pack(fill=tk.X, pady=(10, 0))
         
-        self.generate_qr_button = ttk.Button(
-            qr_buttons_frame,
-            text="Generate QR",
-            command=self.generate_qr_code,
+        self.generate_barcode_button = ttk.Button(
+            barcode_buttons_frame,
+            text="Generate Barcode",
+            command=self.generate_barcode,
             state=tk.DISABLED
         )
-        self.generate_qr_button.pack(side=tk.LEFT, padx=(0, 5))
+        self.generate_barcode_button.pack(side=tk.LEFT, padx=(0, 5))
         
-        self.download_qr_button = ttk.Button(
-            qr_buttons_frame,
-            text="Download QR",
-            command=self.download_qr_code,
+        self.download_barcode_button = ttk.Button(
+            barcode_buttons_frame,
+            text="Download Barcode",
+            command=self.download_barcode,
             state=tk.DISABLED
         )
-        self.download_qr_button.pack(side=tk.LEFT)
+        self.download_barcode_button.pack(side=tk.LEFT)
     
     def create_item_form(self, parent):
         """Create item form widgets"""
@@ -172,12 +171,12 @@ class ItemManagementWindow(ttk.Frame):
             
             # Add items to treeview
             for item in items:
-                has_qr = "✓" if item['qr_code_path'] else "✗"
+                has_barcode = "✓" if item['qr_code_path'] else "✗"
                 self.items_tree.insert("", "end", values=(
                     item['item_code'],
                     item['item_name'],
                     f"₹{item['price']:.2f}",
-                    has_qr
+                    has_barcode
                 ), tags=(item['id'],))
             
         except Exception as e:
@@ -198,12 +197,12 @@ class ItemManagementWindow(ttk.Frame):
         for item in items:
             if (search_term in item['item_code'].lower() or 
                 search_term in item['item_name'].lower()):
-                has_qr = "✓" if item['qr_code_path'] else "✗"
+                has_barcode = "✓" if item['qr_code_path'] else "✗"
                 self.items_tree.insert("", "end", values=(
                     item['item_code'],
                     item['item_name'],
                     f"₹{item['price']:.2f}",
-                    has_qr
+                    has_barcode
                 ), tags=(item['id'],))
     
     def on_item_select(self, event):
@@ -222,15 +221,15 @@ class ItemManagementWindow(ttk.Frame):
         if self.current_item:
             self.populate_form()
             self.update_buttons_state(update=True, delete=True)
-            self.generate_qr_button.config(state=tk.NORMAL)
+            self.generate_barcode_button.config(state=tk.NORMAL)
             
-            # Show existing QR code if available
+            # Show existing barcode if available
             if self.current_item['qr_code_path'] and os.path.exists(self.current_item['qr_code_path']):
-                self.show_qr_code(self.current_item['qr_code_path'])
-                self.download_qr_button.config(state=tk.NORMAL)
+                self.show_barcode(self.current_item['qr_code_path'])
+                self.download_barcode_button.config(state=tk.NORMAL)
             else:
-                self.qr_label.config(text="No QR code generated")
-                self.download_qr_button.config(state=tk.DISABLED)
+                self.barcode_label.config(text="No barcode generated")
+                self.download_barcode_button.config(state=tk.DISABLED)
     
     def populate_form(self):
         """Populate form with selected item data"""
@@ -357,106 +356,100 @@ class ItemManagementWindow(ttk.Frame):
         self.price_var.set("")
         self.current_item = None
         self.update_buttons_state(add=True)
-        self.generate_qr_button.config(state=tk.DISABLED)
-        self.download_qr_button.config(state=tk.DISABLED)
-        self.qr_label.config(text="No item selected")
+        self.generate_barcode_button.config(state=tk.DISABLED)
+        self.download_barcode_button.config(state=tk.DISABLED)
+        self.barcode_label.config(text="No item selected")
         self.items_tree.selection_remove(self.items_tree.selection())
     
-    def generate_qr_code(self):
-        """Generate QR code for selected item"""
+    def generate_barcode(self):
+        """Generate barcode for selected item"""
         try:
             if not self.current_item:
                 messagebox.showerror("Error", "No item selected")
                 return
             
-            # Create QR code directory if it doesn't exist
-            qr_dir = "assets/qr_codes"
-            os.makedirs(qr_dir, exist_ok=True)
+            # Create barcode directory if it doesn't exist
+            barcode_dir = "assets/qr_codes"  # Keep same directory for compatibility
+            os.makedirs(barcode_dir, exist_ok=True)
             
-            # Generate QR code
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=4,
-            )
-            qr.add_data(self.current_item['item_code'])
-            qr.make(fit=True)
+            # Generate Code128 barcode
+            barcode_code = Code128(self.current_item['item_code'], writer=ImageWriter())
             
-            # Create QR code image
-            qr_image = qr.make_image(fill_color="black", back_color="white")
+            # Save barcode
+            barcode_filename = f"qr_{self.current_item['item_code']}.png"  # Keep same naming for compatibility
+            barcode_path = os.path.join(barcode_dir, barcode_filename)
+            barcode_code.save(barcode_path.replace('.png', ''))  # Save without extension, writer adds .png
             
-            # Save QR code
-            qr_filename = f"qr_{self.current_item['item_code']}.png"
-            qr_path = os.path.join(qr_dir, qr_filename)
-            qr_image.save(qr_path)
+            # The actual file will have .png extension added by the writer
+            actual_barcode_path = barcode_path  # This is the correct path with .png
             
-            # Update database with QR code path
+            # Update database with barcode path
             self.db_manager.update_item(
                 self.current_item['id'],
                 self.current_item['item_code'],
                 self.current_item['item_name'],
                 self.current_item['price'],
-                qr_path
+                actual_barcode_path
             )
             
             # Update current item reference
-            self.current_item['qr_code_path'] = qr_path
+            self.current_item['qr_code_path'] = actual_barcode_path
             
-            # Show QR code
-            self.show_qr_code(qr_path)
-            self.download_qr_button.config(state=tk.NORMAL)
+            # Show barcode
+            self.show_barcode(actual_barcode_path)
+            self.download_barcode_button.config(state=tk.NORMAL)
             
             # Refresh items list
             self.load_items()
             
-            messagebox.showinfo("Success", "QR code generated successfully")
+            messagebox.showinfo("Success", "Barcode generated successfully")
         
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to generate QR code: {str(e)}")
+            messagebox.showerror("Error", f"Failed to generate barcode: {str(e)}")
     
-    def show_qr_code(self, qr_path):
-        """Show QR code in the preview label"""
+    def show_barcode(self, barcode_path):
+        """Show barcode in the preview label"""
         try:
-            # Load and resize QR code image
-            qr_image = Image.open(qr_path)
-            qr_image = qr_image.resize((150, 150), Image.Resampling.LANCZOS)
+            # Load and resize barcode image
+            barcode_image = Image.open(barcode_path)
+            # Resize to fit preview (barcodes are typically wider than tall)
+            barcode_image = barcode_image.resize((200, 100), Image.Resampling.LANCZOS)
             
             # Convert to PhotoImage
-            qr_photo = ImageTk.PhotoImage(qr_image)
+            barcode_photo = ImageTk.PhotoImage(barcode_image)
             
             # Update label
-            self.qr_label.config(image=qr_photo, text="")
-            self.qr_label.image = qr_photo  # Keep a reference
+            self.barcode_label.config(image=barcode_photo, text="")
+            self.barcode_label.image = barcode_photo  # Keep a reference
             
         except Exception as e:
-            print(f"Error showing QR code: {e}")
-            self.qr_label.config(text="Error loading QR code")
+            print(f"Error showing barcode: {e}")
+            self.barcode_label.config(text="Error loading barcode")
     
-    def download_qr_code(self):
-        """Download QR code file"""
+    def download_barcode(self):
+        """Download barcode file"""
         try:
             if not self.current_item or not self.current_item['qr_code_path']:
-                messagebox.showerror("Error", "No QR code available")
+                messagebox.showerror("Error", "No barcode available")
                 return
             
             if not os.path.exists(self.current_item['qr_code_path']):
-                messagebox.showerror("Error", "QR code file not found")
+                messagebox.showerror("Error", "Barcode file not found")
                 return
             
             # Open file dialog for save location
-            filename = f"qr_{self.current_item['item_code']}.png"
+            filename = f"barcode_{self.current_item['item_code']}.png"
             file_path = filedialog.asksaveasfilename(
                 defaultextension=".png",
                 filetypes=[("PNG files", "*.png"), ("All files", "*.*")],
-                initialname=filename
+                initialfile=filename
             )
             
             if file_path:
-                # Copy QR code file to selected location
+                # Copy barcode file to selected location
                 import shutil
                 shutil.copy2(self.current_item['qr_code_path'], file_path)
-                messagebox.showinfo("Success", f"QR code saved to {file_path}")
+                messagebox.showinfo("Success", f"Barcode saved to {file_path}")
         
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to download QR code: {str(e)}")
+            messagebox.showerror("Error", f"Failed to download barcode: {str(e)}")

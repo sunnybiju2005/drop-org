@@ -33,19 +33,66 @@ class BillingHistoryWindow(ttk.Frame):
         filter_frame = ttk.LabelFrame(self, text="Filters", padding="10")
         filter_frame.pack(fill=tk.X, pady=(0, 10))
         
-        # Date range selection
+        # Date range selection with calendar buttons
         date_frame = ttk.Frame(filter_frame)
         date_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(date_frame, text="From Date:").pack(side=tk.LEFT, padx=(0, 5))
-        self.from_date_var = tk.StringVar(value=(datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
-        self.from_date_entry = ttk.Entry(date_frame, textvariable=self.from_date_var, width=12)
-        self.from_date_entry.pack(side=tk.LEFT, padx=(0, 20))
+        # From Date
+        from_date_frame = ttk.Frame(date_frame)
+        from_date_frame.pack(side=tk.LEFT, padx=(0, 20))
         
-        ttk.Label(date_frame, text="To Date:").pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(from_date_frame, text="From Date:").pack(anchor="w")
+        from_input_frame = ttk.Frame(from_date_frame)
+        from_input_frame.pack(fill=tk.X, pady=(2, 0))
+        
+        self.from_date_var = tk.StringVar(value=(datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+        self.from_date_entry = ttk.Entry(from_input_frame, textvariable=self.from_date_var, width=12)
+        self.from_date_entry.pack(side=tk.LEFT)
+        
+        from_cal_button = ttk.Button(
+            from_input_frame, 
+            text="📅", 
+            command=lambda: self.open_date_calendar('from'),
+            width=3
+        )
+        from_cal_button.pack(side=tk.LEFT, padx=(2, 0))
+        
+        # To Date
+        to_date_frame = ttk.Frame(date_frame)
+        to_date_frame.pack(side=tk.LEFT, padx=(0, 20))
+        
+        ttk.Label(to_date_frame, text="To Date:").pack(anchor="w")
+        to_input_frame = ttk.Frame(to_date_frame)
+        to_input_frame.pack(fill=tk.X, pady=(2, 0))
+        
         self.to_date_var = tk.StringVar(value=datetime.now().strftime('%Y-%m-%d'))
-        self.to_date_entry = ttk.Entry(date_frame, textvariable=self.to_date_var, width=12)
-        self.to_date_entry.pack(side=tk.LEFT, padx=(0, 20))
+        self.to_date_entry = ttk.Entry(to_input_frame, textvariable=self.to_date_var, width=12)
+        self.to_date_entry.pack(side=tk.LEFT)
+        
+        to_cal_button = ttk.Button(
+            to_input_frame, 
+            text="📅", 
+            command=lambda: self.open_date_calendar('to'),
+            width=3
+        )
+        to_cal_button.pack(side=tk.LEFT, padx=(2, 0))
+        
+        # Quick date buttons
+        quick_dates_frame = ttk.Frame(date_frame)
+        quick_dates_frame.pack(side=tk.RIGHT)
+        
+        ttk.Label(quick_dates_frame, text="Quick Select:", font=("Arial", 9)).pack(anchor="w")
+        quick_buttons_frame = ttk.Frame(quick_dates_frame)
+        quick_buttons_frame.pack(fill=tk.X, pady=(2, 0))
+        
+        today_btn = ttk.Button(quick_buttons_frame, text="Today", command=lambda: self.set_quick_date('today'), width=8)
+        today_btn.pack(side=tk.LEFT, padx=(0, 2))
+        
+        week_btn = ttk.Button(quick_buttons_frame, text="This Week", command=lambda: self.set_quick_date('week'), width=8)
+        week_btn.pack(side=tk.LEFT, padx=(0, 2))
+        
+        month_btn = ttk.Button(quick_buttons_frame, text="This Month", command=lambda: self.set_quick_date('month'), width=8)
+        month_btn.pack(side=tk.LEFT)
         
         # Filter buttons
         filter_buttons_frame = ttk.Frame(filter_frame)
@@ -310,6 +357,499 @@ class BillingHistoryWindow(ttk.Frame):
         
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export bills: {str(e)}")
+    
+    def open_date_calendar(self, date_type):
+        """Open a visual calendar picker dialog"""
+        try:
+            # Get current date value
+            if date_type == 'from':
+                current_date = self.from_date_var.get()
+            else:
+                current_date = self.to_date_var.get()
+            
+            # Parse current date
+            try:
+                current_dt = datetime.strptime(current_date, '%Y-%m-%d')
+            except ValueError:
+                current_dt = datetime.now()
+            
+            # Create professional calendar window
+            calendar_window = tk.Toplevel(self.winfo_toplevel())
+            calendar_window.title(f"📅 Select {date_type.title()} Date")
+            calendar_window.geometry("400x450")
+            calendar_window.resizable(False, False)
+            calendar_window.configure(bg='#f8f9fa')
+            
+            # Center the window
+            calendar_window.update_idletasks()
+            x = (calendar_window.winfo_screenwidth() // 2) - (200)
+            y = (calendar_window.winfo_screenheight() // 2) - (225)
+            calendar_window.geometry(f"400x450+{x}+{y}")
+            
+            # Make window modal
+            calendar_window.transient(self.winfo_toplevel())
+            calendar_window.grab_set()
+            
+            # Main container with professional styling
+            main_container = tk.Frame(calendar_window, bg='#f8f9fa')
+            main_container.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+            
+            # Calendar card with shadow effect
+            cal_card = tk.Frame(main_container, bg='white', relief='raised', bd=2)
+            cal_card.pack(fill=tk.BOTH, expand=True)
+            
+            # Professional header
+            header_frame = tk.Frame(cal_card, bg='#2c3e50', height=60)
+            header_frame.pack(fill=tk.X)
+            header_frame.pack_propagate(False)
+            
+            # Title with icon
+            title_label = tk.Label(
+                header_frame, 
+                text=f"📅 Select {date_type.title()} Date", 
+                font=("Segoe UI", 14, "bold"),
+                fg='white',
+                bg='#2c3e50'
+            )
+            title_label.pack(expand=True)
+            
+            # Calendar content area
+            cal_frame = tk.Frame(cal_card, bg='white', padx=20, pady=20)
+            cal_frame.pack(fill=tk.BOTH, expand=True)
+            
+            # Create professional calendar widget
+            calendar_widget = self.create_calendar_widget(cal_frame, current_dt)
+            calendar_widget.pack(pady=(0, 20))
+            
+            # Professional buttons frame
+            buttons_frame = tk.Frame(cal_frame, bg='white')
+            buttons_frame.pack(fill=tk.X)
+            
+            # Button styling
+            button_style = {
+                'font': ('Segoe UI', 10, 'bold'),
+                'relief': 'flat',
+                'bd': 0,
+                'padx': 20,
+                'pady': 8,
+                'cursor': 'hand2'
+            }
+            
+            # Today button (left)
+            today_btn = tk.Button(
+                buttons_frame, 
+                text="📅 Today", 
+                command=lambda: self.set_calendar_today(calendar_widget),
+                bg='#3498db',
+                fg='white',
+                **button_style
+            )
+            today_btn.pack(side=tk.LEFT)
+            
+            # Cancel button (right)
+            cancel_btn = tk.Button(
+                buttons_frame, 
+                text="❌ Cancel", 
+                command=calendar_window.destroy,
+                bg='#e74c3c',
+                fg='white',
+                **button_style
+            )
+            cancel_btn.pack(side=tk.RIGHT)
+            
+            # OK button (right of cancel)
+            ok_btn = tk.Button(
+                buttons_frame, 
+                text="✅ OK", 
+                command=lambda: self.select_calendar_date(calendar_widget, date_type, calendar_window),
+                bg='#27ae60',
+                fg='white',
+                **button_style
+            )
+            ok_btn.pack(side=tk.RIGHT, padx=(0, 10))
+            
+            # Store reference for callbacks
+            calendar_widget.date_type = date_type
+            calendar_widget.window = calendar_window
+                    
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open calendar: {str(e)}")
+    
+    def create_calendar_widget(self, parent, current_date):
+        """Create a professional calendar widget"""
+        try:
+            # Calendar container with professional styling
+            cal_container = tk.Frame(parent, bg='white')
+            
+            # Professional navigation bar
+            nav_frame = tk.Frame(cal_container, bg='#34495e', height=60)
+            nav_frame.pack(fill=tk.X, pady=(0, 10))
+            nav_frame.pack_propagate(False)
+            
+            # Navigation buttons container
+            nav_buttons_frame = tk.Frame(nav_frame, bg='#34495e')
+            nav_buttons_frame.pack(expand=True)
+            
+            # Previous year button
+            prev_year_btn = tk.Button(
+                nav_buttons_frame, 
+                text="◀◀", 
+                font=("Arial", 12, "bold"),
+                command=lambda: self.change_year(-1, cal_container, current_date),
+                bg='#34495e',
+                fg='white',
+                relief='flat',
+                bd=0,
+                width=2,
+                height=1
+            )
+            prev_year_btn.pack(side=tk.LEFT, padx=2)
+            
+            # Previous month button
+            prev_btn = tk.Button(
+                nav_buttons_frame, 
+                text="◀", 
+                font=("Arial", 14, "bold"),
+                command=lambda: self.change_month(-1, cal_container, current_date),
+                bg='#34495e',
+                fg='white',
+                relief='flat',
+                bd=0,
+                width=3,
+                height=1
+            )
+            prev_btn.pack(side=tk.LEFT, padx=2)
+            
+            # Month/Year label (clickable for quick navigation)
+            self.current_cal_date = current_date
+            self.month_label = tk.Label(
+                nav_buttons_frame, 
+                text=current_date.strftime("%B %Y"), 
+                font=("Segoe UI", 14, "bold"),
+                bg='#34495e',
+                fg='white',
+                cursor='hand2'
+            )
+            self.month_label.pack(side=tk.LEFT, padx=10, pady=10)
+            self.month_label.bind("<Button-1>", lambda e: self.show_year_picker(cal_container, current_date))
+            
+            # Next month button
+            next_btn = tk.Button(
+                nav_buttons_frame, 
+                text="▶", 
+                font=("Arial", 14, "bold"),
+                command=lambda: self.change_month(1, cal_container, current_date),
+                bg='#34495e',
+                fg='white',
+                relief='flat',
+                bd=0,
+                width=3,
+                height=1
+            )
+            next_btn.pack(side=tk.RIGHT, padx=2)
+            
+            # Next year button
+            next_year_btn = tk.Button(
+                nav_buttons_frame, 
+                text="▶▶", 
+                font=("Arial", 12, "bold"),
+                command=lambda: self.change_year(1, cal_container, current_date),
+                bg='#34495e',
+                fg='white',
+                relief='flat',
+                bd=0,
+                width=2,
+                height=1
+            )
+            next_year_btn.pack(side=tk.RIGHT, padx=2)
+            
+            # Calendar grid container
+            self.cal_grid_frame = tk.Frame(cal_container, bg='white')
+            self.cal_grid_frame.pack(fill=tk.BOTH, expand=True, padx=5)
+            
+            # Build initial calendar
+            self.build_calendar_grid(current_date)
+            
+            return cal_container
+            
+        except Exception as e:
+            print(f"Error creating calendar widget: {e}")
+            return tk.Frame(parent, bg='white')
+    
+    def build_calendar_grid(self, date):
+        """Build a professional calendar grid"""
+        try:
+            # Clear existing grid
+            for widget in self.cal_grid_frame.winfo_children():
+                widget.destroy()
+            
+            # Get first day of month and last day of month properly
+            first_day = date.replace(day=1)
+            
+            # Calculate last day of current month properly
+            if date.month == 12:
+                next_month = first_day.replace(year=first_day.year + 1, month=1)
+            else:
+                next_month = first_day.replace(month=first_day.month + 1)
+            
+            last_day = next_month - timedelta(days=1)
+            
+            # Professional day headers with styling
+            day_headers = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            for i, day in enumerate(day_headers):
+                header_label = tk.Label(
+                    self.cal_grid_frame, 
+                    text=day, 
+                    font=("Segoe UI", 10, "bold"),
+                    bg='#ecf0f1',
+                    fg='#2c3e50',
+                    relief='flat'
+                )
+                header_label.grid(row=0, column=i, sticky='ew', padx=1, pady=1)
+            
+            # Configure grid columns to be equal width
+            for i in range(7):
+                self.cal_grid_frame.grid_columnconfigure(i, weight=1)
+            
+            # Calculate starting position (Monday = 0)
+            start_col = (first_day.weekday()) % 7
+            
+            # Create professional day buttons
+            row = 1
+            col = start_col
+            
+            for day in range(1, last_day.day + 1):
+                day_date = first_day.replace(day=day)
+                is_today = day_date.date() == datetime.now().date()
+                is_weekend = day_date.weekday() >= 5  # Saturday = 5, Sunday = 6
+                
+                # Professional button styling
+                if is_today:
+                    btn_bg = '#3498db'  # Blue for today
+                    btn_fg = 'white'
+                    btn_relief = 'raised'
+                elif is_weekend:
+                    btn_bg = '#f8f9fa'  # Light gray for weekends
+                    btn_fg = '#6c757d'
+                    btn_relief = 'flat'
+                else:
+                    btn_bg = 'white'    # White for weekdays
+                    btn_fg = '#2c3e50'
+                    btn_relief = 'flat'
+                
+                # Create professional day button
+                day_btn = tk.Button(
+                    self.cal_grid_frame,
+                    text=str(day),
+                    font=("Segoe UI", 10),
+                    command=lambda d=day_date: self.select_date(d),
+                    bg=btn_bg,
+                    fg=btn_fg,
+                    relief=btn_relief,
+                    bd=1,
+                    width=4,
+                    height=2,
+                    cursor='hand2'
+                )
+                
+                day_btn.grid(row=row, column=col, sticky='ew', padx=1, pady=1)
+                
+                # Add hover effects (basic)
+                day_btn.bind("<Enter>", lambda e, btn=day_btn: btn.configure(bg='#e9ecef' if btn.cget('bg') != '#3498db' else '#2980b9'))
+                day_btn.bind("<Leave>", lambda e, btn=day_btn, orig_bg=btn_bg: btn.configure(bg=orig_bg))
+                
+                # Move to next column
+                col += 1
+                if col > 6:
+                    col = 0
+                    row += 1
+            
+            # Store selected date
+            self.selected_calendar_date = None
+            
+        except Exception as e:
+            print(f"Error building calendar grid: {e}")
+    
+    def change_month(self, direction, container, current_date):
+        """Change month in calendar with proper year handling"""
+        try:
+            # Get the current calendar date
+            if hasattr(self, 'current_cal_date'):
+                base_date = self.current_cal_date
+            else:
+                base_date = current_date
+            
+            if direction == 1:  # Next month
+                if base_date.month == 12:
+                    new_date = base_date.replace(year=base_date.year + 1, month=1)
+                else:
+                    new_date = base_date.replace(month=base_date.month + 1)
+            else:  # Previous month
+                if base_date.month == 1:
+                    new_date = base_date.replace(year=base_date.year - 1, month=12)
+                else:
+                    new_date = base_date.replace(month=base_date.month - 1)
+            
+            # Update current calendar date
+            self.current_cal_date = new_date
+            
+            # Update month label
+            self.month_label.config(text=new_date.strftime("%B %Y"))
+            
+            # Rebuild calendar grid with new date
+            self.build_calendar_grid(new_date)
+            
+        except Exception as e:
+            print(f"Error changing month: {e}")
+    
+    def change_year(self, direction, container, current_date):
+        """Change year in calendar"""
+        try:
+            # Get the current calendar date
+            if hasattr(self, 'current_cal_date'):
+                base_date = self.current_cal_date
+            else:
+                base_date = current_date
+            
+            # Change year
+            new_date = base_date.replace(year=base_date.year + direction)
+            
+            # Update current calendar date
+            self.current_cal_date = new_date
+            
+            # Update month label
+            self.month_label.config(text=new_date.strftime("%B %Y"))
+            
+            # Rebuild calendar grid with new date
+            self.build_calendar_grid(new_date)
+            
+        except Exception as e:
+            print(f"Error changing year: {e}")
+    
+    def show_year_picker(self, container, current_date):
+        """Show year picker dialog"""
+        try:
+            from tkinter import simpledialog
+            
+            # Get current year
+            current_year = current_date.year
+            
+            # Ask for year
+            new_year = simpledialog.askinteger(
+                "Select Year",
+                "Enter year:",
+                initialvalue=current_year,
+                minvalue=1900,
+                maxvalue=2100
+            )
+            
+            if new_year:
+                # Create new date with selected year
+                new_date = current_date.replace(year=new_year)
+                
+                # Update current calendar date
+                self.current_cal_date = new_date
+                
+                # Update month label
+                self.month_label.config(text=new_date.strftime("%B %Y"))
+                
+                # Rebuild calendar grid
+                self.build_calendar_grid(new_date)
+                
+        except Exception as e:
+            print(f"Error showing year picker: {e}")
+    
+    def set_calendar_today(self, calendar_widget):
+        """Set calendar to today's date"""
+        try:
+            today = datetime.now()
+            self.current_cal_date = today
+            self.month_label.config(text=today.strftime("%B %Y"))
+            self.build_calendar_grid(today)
+        except Exception as e:
+            print(f"Error setting calendar to today: {e}")
+    
+    def select_date(self, date):
+        """Select a date from calendar with professional highlighting"""
+        try:
+            self.selected_calendar_date = date
+            
+            # Reset all buttons to their default styling first
+            for widget in self.cal_grid_frame.winfo_children():
+                if isinstance(widget, tk.Button):
+                    # Get the date for this button
+                    try:
+                        widget_day = int(widget.cget("text"))
+                        widget_date = self.current_cal_date.replace(day=widget_day)
+                        
+                        # Determine original styling
+                        is_today = widget_date.date() == datetime.now().date()
+                        is_weekend = widget_date.weekday() >= 5
+                        
+                        if is_today:
+                            widget.configure(bg='#3498db', fg='white', relief='raised')
+                        elif is_weekend:
+                            widget.configure(bg='#f8f9fa', fg='#6c757d', relief='flat')
+                        else:
+                            widget.configure(bg='white', fg='#2c3e50', relief='flat')
+                            
+                    except ValueError:
+                        continue
+            
+            # Highlight selected date
+            for widget in self.cal_grid_frame.winfo_children():
+                if isinstance(widget, tk.Button) and widget.cget("text") == str(date.day):
+                    widget.configure(bg='#e74c3c', fg='white', relief='raised', bd=2)
+                    break
+            
+        except Exception as e:
+            print(f"Error selecting date: {e}")
+    
+    def select_calendar_date(self, calendar_widget, date_type, window):
+        """Confirm date selection and close calendar"""
+        try:
+            if self.selected_calendar_date:
+                date_str = self.selected_calendar_date.strftime('%Y-%m-%d')
+                
+                # Update the appropriate date variable
+                if date_type == 'from':
+                    self.from_date_var.set(date_str)
+                else:
+                    self.to_date_var.set(date_str)
+                
+                # Close calendar window
+                window.destroy()
+            else:
+                messagebox.showwarning("No Date Selected", "Please select a date from the calendar")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to select date: {str(e)}")
+            window.destroy()
+    
+    def set_quick_date(self, period):
+        """Set quick date ranges"""
+        try:
+            today = datetime.now()
+            
+            if period == 'today':
+                date_str = today.strftime('%Y-%m-%d')
+                self.from_date_var.set(date_str)
+                self.to_date_var.set(date_str)
+                
+            elif period == 'week':
+                # Start of week (Monday)
+                start_of_week = today - timedelta(days=today.weekday())
+                self.from_date_var.set(start_of_week.strftime('%Y-%m-%d'))
+                self.to_date_var.set(today.strftime('%Y-%m-%d'))
+                
+            elif period == 'month':
+                # Start of month
+                start_of_month = today.replace(day=1)
+                self.from_date_var.set(start_of_month.strftime('%Y-%m-%d'))
+                self.to_date_var.set(today.strftime('%Y-%m-%d'))
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to set quick date: {str(e)}")
     
     def update_summary(self, total_bills: int, total_amount: float):
         """Update summary labels"""
