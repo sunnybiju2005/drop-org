@@ -136,7 +136,6 @@ class AdminDashboard(ttk.Frame):
             ("📦 Manage Items", self.open_item_management),
             ("📋 Billing History", self.open_billing_history),
             ("⚙️ Settings", self.open_settings),
-            ("👥 Staff Billing", self.open_staff_login),
         ]
         
         for text, command in nav_buttons:
@@ -366,45 +365,6 @@ class AdminDashboard(ttk.Frame):
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open settings: {str(e)}")
-    
-    def open_staff_login(self):
-        """Open staff billing interface directly"""
-        try:
-            # Create a default staff user object
-            staff_user = {
-                'id': 1,
-                'username': 'staff',
-                'user_type': 'staff',
-                'last_login': None
-            }
-            
-            # Create new window for staff billing
-            staff_window = tk.Toplevel(self.root)
-            staff_window.title("DROP - Staff Billing")
-            staff_window.geometry("1600x1000")
-            staff_window.resizable(True, True)
-            staff_window.minsize(1200, 800)
-            
-            # Center staff window
-            staff_window.update_idletasks()
-            x = (staff_window.winfo_screenwidth() // 2) - (800)
-            y = (staff_window.winfo_screenheight() // 2) - (500)
-            staff_window.geometry(f"1600x1000+{x}+{y}")
-            
-            # Create staff dashboard
-            staff_dashboard = StaffDashboard(
-                staff_window,
-                self.db_manager,
-                self.config,
-                staff_user
-            )
-            staff_dashboard.pack(fill=tk.BOTH, expand=True)
-            
-            # Store reference for cleanup
-            staff_window.staff_dashboard = staff_dashboard
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to open staff billing: {str(e)}")
     
     def toggle_theme(self):
         """Toggle between light and dark theme"""
