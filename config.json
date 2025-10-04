@@ -1,0 +1,14 @@
+{
+    "theme": "light",
+    "window_width": 1200,
+    "window_height": 800,
+    "auto_save": true,
+    "printer_name": "",
+    "shop_info": {
+        "name": "DROP",
+        "tagline": "DRESS FOR LESS",
+        "address": "City center, Naikkanal, Thrissur, Kerala 680001",
+        "phone": "",
+        "email": ""
+    }
+}
