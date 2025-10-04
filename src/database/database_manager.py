@@ -277,11 +277,14 @@ class DatabaseManager:
         try:
             cursor = self.connection.cursor()
             
-            # Insert bill
+            # Use exact system time
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Insert bill with exact system time
             cursor.execute('''
-                INSERT INTO bills (bill_number, total_amount, payment_method, staff_username)
-                VALUES (?, ?, ?, ?)
-            ''', (bill_number, total_amount, payment_method, staff_username))
+                INSERT INTO bills (bill_number, total_amount, payment_method, staff_username, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (bill_number, total_amount, payment_method, staff_username, current_time))
             
             bill_id = cursor.lastrowid
             
@@ -415,14 +418,17 @@ class DatabaseManager:
         """Generate next bill number"""
         try:
             cursor = self.connection.cursor()
+            
+            # Use exact system date for consistency
+            today = datetime.now().strftime('%Y-%m-%d')
             cursor.execute('''
                 SELECT COUNT(*) as count FROM bills
-                WHERE DATE(created_at) = DATE('now')
-            ''')
+                WHERE DATE(created_at) = ?
+            ''', (today,))
             
             count = cursor.fetchone()['count']
-            today = datetime.now().strftime('%Y%m%d')
-            return f"BILL{today}{count + 1:04d}"
+            today_formatted = datetime.now().strftime('%Y%m%d')
+            return f"BILL{today_formatted}{count + 1:04d}"
             
         except sqlite3.Error as e:
             print(f"Error generating bill number: {e}")

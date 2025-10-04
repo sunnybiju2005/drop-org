@@ -81,12 +81,103 @@ class StaffDashboard(ttk.Frame):
             # Spacer
             ttk.Frame(header_frame).pack(side=tk.RIGHT, expand=True)
             
-            # Main content frame
+            # Main content frame with left and right sections
             main_frame = ttk.Frame(self.scrollable_frame)
             main_frame.pack(fill=tk.BOTH, expand=True, padx=20)
+            
+            # Left main content area
+            left_main_frame = ttk.Frame(main_frame)
+            left_main_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+            
+            # Right sidebar for additional information
+            right_sidebar = ttk.Frame(main_frame, width=300)
+            right_sidebar.pack(side=tk.RIGHT, fill=tk.Y, padx=(10, 0))
+            right_sidebar.pack_propagate(False)
+            
+            # Recent Transactions Panel
+            recent_frame = ttk.LabelFrame(right_sidebar, text="Recent Transactions", padding="10")
+            recent_frame.pack(fill=tk.X, pady=(0, 10))
+            
+            # Recent transactions list
+            recent_columns = ("Date/Time", "Amount", "Items")
+            self.recent_tree = ttk.Treeview(recent_frame, columns=recent_columns, show="headings", height=8)
+            
+            # Configure recent transactions columns
+            recent_column_widths = {"Date/Time": 90, "Amount": 80, "Items": 100}
+            for col in recent_columns:
+                self.recent_tree.heading(col, text=col)
+                self.recent_tree.column(col, width=recent_column_widths.get(col, 80))
+            
+            # Recent transactions scrollbar
+            recent_scrollbar = ttk.Scrollbar(recent_frame, orient=tk.VERTICAL, command=self.recent_tree.yview)
+            self.recent_tree.configure(yscrollcommand=recent_scrollbar.set)
+            
+            self.recent_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            recent_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            # Quick Stats Panel
+            stats_frame = ttk.LabelFrame(right_sidebar, text="Today's Stats", padding="10")
+            stats_frame.pack(fill=tk.X, pady=(0, 10))
+            
+            # Stats labels
+            self.today_bills_label = ttk.Label(stats_frame, text="Bills Today: 0", font=("Arial", 10))
+            self.today_bills_label.pack(anchor="w", pady=2)
+            
+            self.today_amount_label = ttk.Label(stats_frame, text="Amount Today: ₹0.00", font=("Arial", 10))
+            self.today_amount_label.pack(anchor="w", pady=2)
+            
+            self.today_items_label = ttk.Label(stats_frame, text="Items Sold: 0", font=("Arial", 10))
+            self.today_items_label.pack(anchor="w", pady=2)
+            
+            # Quick Actions Panel
+            actions_frame = ttk.LabelFrame(right_sidebar, text="Quick Actions", padding="10")
+            actions_frame.pack(fill=tk.X, pady=(0, 10))
+            
+            # Quick action buttons
+            refresh_stats_btn = ttk.Button(actions_frame, text="🔄 Refresh Stats", command=self.refresh_stats, width=20)
+            refresh_stats_btn.pack(fill=tk.X, pady=2)
+            
+            view_recent_btn = ttk.Button(actions_frame, text="📋 View All Bills", command=self.view_all_bills, width=20)
+            view_recent_btn.pack(fill=tk.X, pady=2)
+            
+            # Payment Summary Panel
+            payment_summary_frame = ttk.LabelFrame(right_sidebar, text="Payment Summary", padding="10")
+            payment_summary_frame.pack(fill=tk.X)
+            
+            # Payment method counters
+            self.cash_count_label = ttk.Label(payment_summary_frame, text="💵 Cash: 0", font=("Arial", 9))
+            self.cash_count_label.pack(anchor="w", pady=1)
+            
+            self.upi_count_label = ttk.Label(payment_summary_frame, text="📱 UPI: 0", font=("Arial", 9))
+            self.upi_count_label.pack(anchor="w", pady=1)
+            
+            self.card_count_label = ttk.Label(payment_summary_frame, text="💳 Card: 0", font=("Arial", 9))
+            self.card_count_label.pack(anchor="w", pady=1)
+            
+            # Add separator
+            ttk.Separator(payment_summary_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(10, 10))
+            
+            # Bill Summary Label - Moved to right sidebar
+            self.bill_summary_label = ttk.Label(
+                payment_summary_frame, 
+                text="Cart is empty", 
+                font=("Arial", 10), 
+                foreground="gray"
+            )
+            self.bill_summary_label.pack(fill=tk.X, pady=(0, 10))
+            
+            # Generate Bill Button - Moved to right sidebar
+            self.bill_button = ttk.Button(
+                payment_summary_frame,
+                text="🧾 GENERATE BILL & SAVE TO DATABASE",
+                command=self.generate_bill,
+                state=tk.DISABLED,
+                width=25
+            )
+            self.bill_button.pack(fill=tk.X, pady=(0, 10))
         
             # Top section - Item search
-            search_section = ttk.LabelFrame(main_frame, text="Item Search", padding="15")
+            search_section = ttk.LabelFrame(left_main_frame, text="Item Search", padding="15")
             search_section.pack(fill=tk.X, pady=(0, 20))
             
             # Search frame with larger input
@@ -155,7 +246,7 @@ class StaffDashboard(ttk.Frame):
             self.add_to_cart_button.pack(side=tk.LEFT)
             
             # Total amount section - Move it up for better visibility
-            total_section = ttk.LabelFrame(main_frame, text="Total Amount", padding="15")
+            total_section = ttk.LabelFrame(left_main_frame, text="Total Amount", padding="15")
             total_section.pack(fill=tk.X, pady=(0, 20))
             
             # Total amount display - Large and prominent
@@ -167,7 +258,7 @@ class StaffDashboard(ttk.Frame):
             self.total_label.pack(pady=(5, 0))
             
             # Cart section - Big cart space
-            cart_section = ttk.LabelFrame(main_frame, text="Shopping Cart", padding="15")
+            cart_section = ttk.LabelFrame(left_main_frame, text="Shopping Cart", padding="15")
             cart_section.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
             # Cart items list with larger space
@@ -191,7 +282,7 @@ class StaffDashboard(ttk.Frame):
             self.cart_tree.bind('<<TreeviewSelect>>', self.on_cart_item_select)
             
             # Bottom section - Controls and payment
-            bottom_section = ttk.Frame(main_frame)
+            bottom_section = ttk.Frame(left_main_frame)
             bottom_section.pack(fill=tk.X, pady=(10, 0))
             bottom_section.configure(height=300)
             bottom_section.pack_propagate(False)
@@ -269,27 +360,10 @@ class StaffDashboard(ttk.Frame):
             )
             self.payment_status_label.pack(anchor="w", pady=(10, 0))
             
-            # Bill button - Enhanced
-            self.bill_button = ttk.Button(
-                payment_frame,
-                text="🧾 GENERATE BILL & SAVE TO DATABASE",
-                command=self.generate_bill,
-                state=tk.DISABLED,
-                width=40
-            )
-            self.bill_button.pack(fill=tk.X, pady=(25, 0))
             
             # Add a separator
             ttk.Separator(payment_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(15, 10))
             
-            # Quick bill summary
-            self.bill_summary_label = ttk.Label(
-                payment_frame, 
-                text="Cart is empty", 
-                font=("Arial", 10), 
-                foreground="gray"
-            )
-            self.bill_summary_label.pack(fill=tk.X, pady=(0, 5))
             
             # Add some bottom spacing for scrolling
             bottom_spacer = ttk.Frame(main_frame, height=50)
@@ -297,6 +371,9 @@ class StaffDashboard(ttk.Frame):
             
             # Store references
             self.current_selected_item = None
+            
+            # Initialize stats
+            self.refresh_stats()
             
         except Exception as e:
             print(f"Error creating staff dashboard widgets: {e}")
@@ -599,6 +676,9 @@ Saving to database and printing...
                         
                         # Automatically print the bill
                         self.print_bill_automatically(pdf_path, bill_number, total_amount, payment_method, payment_icon)
+                        
+                        # Refresh stats after bill generation
+                        self.refresh_stats()
                     else:
                         messagebox.showerror("Error", "Bill generated but PDF creation failed")
                 else:
@@ -730,3 +810,92 @@ Print Error: {str(e)}
 
 Print Error: {str(e)}
                 """)
+    
+    def refresh_stats(self):
+        """Refresh today's statistics"""
+        try:
+            # Get today's bills
+            today = datetime.now().strftime('%Y-%m-%d')
+            bills = self.db_manager.get_bills_by_date_range(today, today)
+            
+            # Calculate stats
+            total_bills = len(bills)
+            total_amount = sum(bill['total_amount'] for bill in bills)
+            total_items = 0
+            payment_counts = {'cash': 0, 'upi': 0, 'card': 0}
+            
+            for bill in bills:
+                bill_details = self.db_manager.get_bill_details(bill['id'])
+                if bill_details:
+                    total_items += len(bill_details['items'])
+                    payment_method = bill.get('payment_method', 'cash').lower()
+                    if payment_method in payment_counts:
+                        payment_counts[payment_method] += 1
+            
+            # Update labels
+            self.today_bills_label.config(text=f"Bills Today: {total_bills}")
+            self.today_amount_label.config(text=f"Amount Today: ₹{total_amount:.2f}")
+            self.today_items_label.config(text=f"Items Sold: {total_items}")
+            
+            # Update payment counts
+            self.cash_count_label.config(text=f"💵 Cash: {payment_counts['cash']}")
+            self.upi_count_label.config(text=f"📱 UPI: {payment_counts['upi']}")
+            self.card_count_label.config(text=f"💳 Card: {payment_counts['card']}")
+            
+            # Update recent transactions
+            self.update_recent_transactions()
+            
+        except Exception as e:
+            print(f"Error refreshing stats: {e}")
+    
+    def update_recent_transactions(self):
+        """Update recent transactions list"""
+        try:
+            # Clear existing items
+            for item in self.recent_tree.get_children():
+                self.recent_tree.delete(item)
+            
+            # Get recent bills (last 10)
+            today = datetime.now().strftime('%Y-%m-%d')
+            bills = self.db_manager.get_bills_by_date_range(today, today)
+            
+            # Sort by creation time (most recent first)
+            bills.sort(key=lambda x: x['created_at'], reverse=True)
+            
+            # Add recent transactions (limit to 10)
+            for bill in bills[:10]:
+                # Show date and time to match system time exactly
+                bill_datetime = datetime.strptime(bill['created_at'], '%Y-%m-%d %H:%M:%S')
+                time_str = bill_datetime.strftime('%d/%m %H:%M')
+                amount = f"₹{bill['total_amount']:.0f}"
+                
+                # Get item count
+                bill_details = self.db_manager.get_bill_details(bill['id'])
+                item_count = len(bill_details['items']) if bill_details else 0
+                items_str = f"{item_count} items"
+                
+                self.recent_tree.insert("", "end", values=(time_str, amount, items_str))
+                
+        except Exception as e:
+            print(f"Error updating recent transactions: {e}")
+    
+    def view_all_bills(self):
+        """Open billing history window"""
+        try:
+            from src.ui.billing_history import BillingHistoryWindow
+            
+            history_window = tk.Toplevel(self.winfo_toplevel())
+            history_window.title("Billing History")
+            history_window.geometry("1000x600")
+            
+            # Center the window
+            history_window.update_idletasks()
+            x = (history_window.winfo_screenwidth() // 2) - (500)
+            y = (history_window.winfo_screenheight() // 2) - (300)
+            history_window.geometry(f"1000x600+{x}+{y}")
+            
+            billing_history = BillingHistoryWindow(history_window, self.db_manager, self.config)
+            billing_history.pack(fill=tk.BOTH, expand=True)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open billing history: {str(e)}")
