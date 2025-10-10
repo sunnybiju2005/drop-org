@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict
 from datetime import datetime
+import os
 
 from src.database.database_manager import DatabaseManager
 from src.config.config import Config
@@ -219,6 +220,10 @@ class StaffDashboard(ttk.Frame):
             )
             manual_add_button.pack(side=tk.RIGHT)
             
+            # Add Enter key binding to manual add button for convenience
+            self.barcode_entry.bind('<Return>', lambda e: self.manual_add_barcode_item())
+            self.barcode_entry.bind('<KP_Enter>', lambda e: self.manual_add_barcode_item())
+            
             # Separator
             ttk.Separator(search_section, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
             
@@ -422,6 +427,12 @@ class StaffDashboard(ttk.Frame):
             # Focus on barcode entry for immediate scanning
             self.barcode_entry.focus()
             
+            # Prevent accidental navigation by binding escape to clear focus
+            self.barcode_entry.bind('<Escape>', lambda e: self.barcode_entry.focus_set())
+            
+            # Ensure window stays active and focused
+            self.after(100, lambda: self.barcode_entry.focus())
+            
         except Exception as e:
             print(f"Error creating staff dashboard widgets: {e}")
             # Create a simple error display
@@ -463,19 +474,29 @@ class StaffDashboard(ttk.Frame):
     def go_back_to_main(self):
         """Go back to main selection window"""
         try:
-            # Use the main app reference if available
-            if hasattr(self, 'main_app') and self.main_app:
-                self.main_app.show_main_selection()
+            # Ask for confirmation to prevent accidental navigation
+            if messagebox.askyesno(
+                "Confirm Exit", 
+                "Are you sure you want to go back to main menu?\n\nThis will close the current billing session.",
+                icon='question'
+            ):
+                # Use the main app reference if available
+                if hasattr(self, 'main_app') and self.main_app:
+                    self.main_app.show_main_selection()
+                else:
+                    # Fallback: get the root window and clear it
+                    root = self.winfo_toplevel()
+                    for widget in root.winfo_children():
+                        widget.destroy()
+                    
+                    # Import and show main selection
+                    from main import DropBillingApp
+                    app = DropBillingApp()
+                    app.show_main_selection()
             else:
-                # Fallback: get the root window and clear it
-                root = self.winfo_toplevel()
-                for widget in root.winfo_children():
-                    widget.destroy()
-                
-                # Import and show main selection
-                from main import DropBillingApp
-                app = DropBillingApp()
-                app.show_main_selection()
+                # User cancelled, keep focus on barcode entry
+                if hasattr(self, 'barcode_entry'):
+                    self.barcode_entry.focus()
                 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to go back to main: {str(e)}")
@@ -500,6 +521,11 @@ class StaffDashboard(ttk.Frame):
     def on_barcode_input(self, event=None):
         """Handle barcode scanner input - detect when barcode is scanned"""
         try:
+            # Prevent any unwanted navigation or window changes
+            if event:
+                # Stop event propagation to prevent triggering other handlers
+                event.widget.focus_set()
+            
             # Get current input
             current_input = self.barcode_var.get()
             
@@ -507,6 +533,10 @@ class StaffDashboard(ttk.Frame):
             if not current_input:
                 self.barcode_input_buffer = ""
                 self.barcode_scan_timer = None
+                self.barcode_status_label.config(
+                    text="Ready to scan barcode...", 
+                    foreground="gray"
+                )
                 return
             
             # Add to buffer
@@ -516,13 +546,13 @@ class StaffDashboard(ttk.Frame):
             if self.barcode_scan_timer:
                 self.after_cancel(self.barcode_scan_timer)
             
-            # Set timer to detect end of barcode scan (typically 100ms after last input)
-            self.barcode_scan_timer = self.after(100, self.process_barcode_scan)
+            # Set timer to detect end of barcode scan (typically 200ms after last input for manual typing)
+            self.barcode_scan_timer = self.after(200, self.process_barcode_scan)
             
             # Update status
             self.barcode_status_label.config(
-                text=f"Scanning... ({len(current_input)} characters)", 
-                foreground="orange"
+                text=f"Entering... ({len(current_input)} characters)", 
+                foreground="blue"
             )
             
         except Exception as e:
@@ -622,9 +652,17 @@ class StaffDashboard(ttk.Frame):
     def manual_add_barcode_item(self):
         """Manually add item from barcode input field"""
         try:
+            # Ensure we're still in staff dashboard context
+            if not hasattr(self, 'barcode_var'):
+                print("Error: barcode_var not found - possible navigation issue")
+                return
+                
             item_code = self.barcode_var.get().strip()
             if not item_code:
                 messagebox.showerror("Error", "Please enter an item code")
+                # Keep focus on barcode entry
+                if hasattr(self, 'barcode_entry'):
+                    self.barcode_entry.focus()
                 return
             
             # Clear the input field
@@ -927,31 +965,59 @@ class StaffDashboard(ttk.Frame):
                 )
                 
                 if bill_details:
-                    # Generate bill PDF
-                    pdf_path = self.bill_generator.generate_bill_pdf(bill_details)
-                    
-                    if pdf_path:
-                        # Clear cart first (without confirmation)
-                        self.cart_items = []
-                        self.update_cart_display()
-                        self.remove_item_button.config(state=tk.DISABLED)
+                    # Check if carbon printer mode is enabled
+                    if self.config.get("carbon_printer_mode", False):
+                        # Generate carbon printer optimized bill
+                        bill_path = self.bill_generator.generate_carbon_printer_bill(bill_details)
                         
-                        # Reset barcode status
-                        self.barcode_status_label.config(
-                            text="Ready to scan barcode...", 
-                            foreground="gray"
-                        )
-                        
-                        # Automatically print and open the bill
-                        self.print_and_open_bill(pdf_path, bill_number, total_amount, payment_method, payment_icon)
-                        
-                        # Refresh stats after bill generation
-                        self.refresh_stats()
-                        
-                        # Focus back to barcode entry for next transaction
-                        self.barcode_entry.focus()
+                        if bill_path:
+                            # Clear cart first (without confirmation)
+                            self.cart_items = []
+                            self.update_cart_display()
+                            self.remove_item_button.config(state=tk.DISABLED)
+                            
+                            # Reset barcode status
+                            self.barcode_status_label.config(
+                                text="Ready to scan barcode...", 
+                                foreground="gray"
+                            )
+                            
+                            # Print directly to carbon printer
+                            self.print_to_carbon_printer(bill_path, bill_number, total_amount, payment_method, payment_icon)
+                            
+                            # Refresh stats after bill generation
+                            self.refresh_stats()
+                            
+                            # Focus back to barcode entry for next transaction
+                            self.barcode_entry.focus()
+                        else:
+                            messagebox.showerror("Error", "Bill generated but carbon printer file creation failed")
                     else:
-                        messagebox.showerror("Error", "Bill generated but PDF creation failed")
+                        # Generate regular PDF
+                        pdf_path = self.bill_generator.generate_bill_pdf(bill_details)
+                        
+                        if pdf_path:
+                            # Clear cart first (without confirmation)
+                            self.cart_items = []
+                            self.update_cart_display()
+                            self.remove_item_button.config(state=tk.DISABLED)
+                            
+                            # Reset barcode status
+                            self.barcode_status_label.config(
+                                text="Ready to scan barcode...", 
+                                foreground="gray"
+                            )
+                            
+                            # Automatically print and open the bill
+                            self.print_and_open_bill(pdf_path, bill_number, total_amount, payment_method, payment_icon)
+                            
+                            # Refresh stats after bill generation
+                            self.refresh_stats()
+                            
+                            # Focus back to barcode entry for next transaction
+                            self.barcode_entry.focus()
+                        else:
+                            messagebox.showerror("Error", "Bill generated but PDF creation failed")
                 else:
                     messagebox.showerror("Error", "Failed to retrieve bill details")
             else:
@@ -1084,6 +1150,47 @@ File: {os.path.basename(pdf_path)}
 
 File: {os.path.basename(pdf_path)}
                 """)
+
+    def print_to_carbon_printer(self, bill_path, bill_number, total_amount, payment_method, payment_icon):
+        """Print bill directly to carbon printer"""
+        try:
+            # Print to carbon printer using bill generator
+            printer_name = self.config.get("carbon_printer_name", None)
+            success = self.bill_generator.print_to_carbon_printer(bill_path, printer_name)
+            
+            if success:
+                messagebox.showinfo("Bill Printed Successfully", f"""
+✅ BILL GENERATED & PRINTED TO CARBON PRINTER!
+
+📄 Bill Number: {bill_number}
+💰 Total Amount: ₹{total_amount:.2f}
+💳 Payment Method: {payment_method.upper()}
+🖨️ Printer: Carbon Printer
+
+The bill has been printed directly to your carbon printer.
+File saved: {os.path.basename(bill_path)}
+                """)
+            else:
+                messagebox.showwarning("Print Warning", f"""
+✅ BILL GENERATED & SAVED!
+
+📄 Bill Number: {bill_number}
+💰 Total Amount: ₹{total_amount:.2f}
+💳 Payment Method: {payment_method.upper()}
+
+⚠️ Could not print to carbon printer automatically.
+Please check printer connection and try printing manually.
+File saved: {os.path.basename(bill_path)}
+                """)
+            
+            # Focus back to barcode entry
+            self.barcode_entry.focus()
+            
+        except Exception as e:
+            print(f"Carbon printer print error: {e}")
+            messagebox.showerror("Print Error", f"Failed to print to carbon printer: {str(e)}")
+            # Focus back to barcode entry
+            self.barcode_entry.focus()
 
     def print_bill_automatically(self, pdf_path, bill_number, total_amount, payment_method, payment_icon):
         """Automatically print bill to connected printer"""

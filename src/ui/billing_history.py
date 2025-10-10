@@ -373,18 +373,18 @@ class BillingHistoryWindow(ttk.Frame):
             except ValueError:
                 current_dt = datetime.now()
             
-            # Create professional calendar window
+            # Create professional calendar window - Much larger for better button visibility
             calendar_window = tk.Toplevel(self.winfo_toplevel())
             calendar_window.title(f"📅 Select {date_type.title()} Date")
-            calendar_window.geometry("400x450")
+            calendar_window.geometry("500x600")
             calendar_window.resizable(False, False)
             calendar_window.configure(bg='#f8f9fa')
             
             # Center the window
             calendar_window.update_idletasks()
-            x = (calendar_window.winfo_screenwidth() // 2) - (200)
-            y = (calendar_window.winfo_screenheight() // 2) - (225)
-            calendar_window.geometry(f"400x450+{x}+{y}")
+            x = (calendar_window.winfo_screenwidth() // 2) - (250)
+            y = (calendar_window.winfo_screenheight() // 2) - (300)
+            calendar_window.geometry(f"500x600+{x}+{y}")
             
             # Make window modal
             calendar_window.transient(self.winfo_toplevel())
@@ -421,18 +421,19 @@ class BillingHistoryWindow(ttk.Frame):
             calendar_widget = self.create_calendar_widget(cal_frame, current_dt)
             calendar_widget.pack(pady=(0, 20))
             
-            # Professional buttons frame
+            # Professional buttons frame with better spacing
             buttons_frame = tk.Frame(cal_frame, bg='white')
-            buttons_frame.pack(fill=tk.X)
+            buttons_frame.pack(fill=tk.X, pady=(20, 0))
             
-            # Button styling
+            # Button styling - Larger buttons for better visibility
             button_style = {
-                'font': ('Segoe UI', 10, 'bold'),
+                'font': ('Arial', 12, 'bold'),
                 'relief': 'flat',
                 'bd': 0,
-                'padx': 20,
-                'pady': 8,
-                'cursor': 'hand2'
+                'padx': 30,
+                'pady': 12,
+                'cursor': 'hand2',
+                'width': 10
             }
             
             # Today button (left)
@@ -444,7 +445,11 @@ class BillingHistoryWindow(ttk.Frame):
                 fg='white',
                 **button_style
             )
-            today_btn.pack(side=tk.LEFT)
+            today_btn.pack(side=tk.LEFT, padx=(0, 15))
+            
+            # Spacer to push action buttons to the right
+            spacer = tk.Frame(buttons_frame, bg='white')
+            spacer.pack(side=tk.LEFT, fill=tk.X, expand=True)
             
             # Cancel button (right)
             cancel_btn = tk.Button(
@@ -455,7 +460,7 @@ class BillingHistoryWindow(ttk.Frame):
                 fg='white',
                 **button_style
             )
-            cancel_btn.pack(side=tk.RIGHT)
+            cancel_btn.pack(side=tk.RIGHT, padx=(15, 0))
             
             # OK button (right of cancel)
             ok_btn = tk.Button(
@@ -466,7 +471,7 @@ class BillingHistoryWindow(ttk.Frame):
                 fg='white',
                 **button_style
             )
-            ok_btn.pack(side=tk.RIGHT, padx=(0, 10))
+            ok_btn.pack(side=tk.RIGHT, padx=(0, 15))
             
             # Store reference for callbacks
             calendar_widget.date_type = date_type
@@ -563,9 +568,10 @@ class BillingHistoryWindow(ttk.Frame):
             )
             next_year_btn.pack(side=tk.RIGHT, padx=2)
             
-            # Calendar grid container
-            self.cal_grid_frame = tk.Frame(cal_container, bg='white')
-            self.cal_grid_frame.pack(fill=tk.BOTH, expand=True, padx=5)
+            # Calendar grid container - Fixed height to ensure buttons are visible
+            self.cal_grid_frame = tk.Frame(cal_container, bg='white', height=350)
+            self.cal_grid_frame.pack(fill=tk.X, padx=5, pady=5)
+            self.cal_grid_frame.pack_propagate(False)
             
             # Build initial calendar
             self.build_calendar_grid(current_date)

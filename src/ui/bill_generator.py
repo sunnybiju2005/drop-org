@@ -20,6 +20,7 @@ class BillGenerator:
     def __init__(self, db_manager: DatabaseManager, config: Config):
         self.db_manager = db_manager
         self.config = config
+        self.carbon_printer_mode = config.get("carbon_printer_mode", False)
     
     def generate_bill_pdf(self, bill_details: dict) -> str:
         """Generate PDF bill from bill details"""
@@ -180,3 +181,144 @@ class BillGenerator:
         except Exception as e:
             print(f"Error generating bill PDF: {e}")
             return None
+    
+    def generate_carbon_printer_bill(self, bill_details: dict) -> str:
+        """Generate carbon printer optimized bill (text format)"""
+        try:
+            # Create bills directory if it doesn't exist
+            bills_dir = "assets/bills"
+            os.makedirs(bills_dir, exist_ok=True)
+            
+            # Generate text filename for carbon printer
+            txt_filename = f"bill_{bill_details['bill_number']}.txt"
+            txt_path = os.path.join(bills_dir, txt_filename)
+            
+            # Get shop info
+            shop_info = self.db_manager.get_shop_info()
+            shop_name = shop_info.get('shop_name', 'DROP')
+            shop_tagline = shop_info.get('tagline', 'DRESS FOR LESS')
+            shop_address = shop_info.get('address', 'City center, Naikkanal, Thrissur, Kerala 680001')
+            
+            # Format date
+            bill_date = datetime.strptime(bill_details['created_at'], '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y')
+            
+            # Create carbon printer optimized bill content
+            bill_content = []
+            
+            # Header - centered and bold for carbon printer
+            bill_content.append("=" * 50)
+            bill_content.append(f"        {shop_name.upper()}")
+            bill_content.append(f"      {shop_tagline.upper()}")
+            bill_content.append(f"    {shop_address}")
+            bill_content.append("=" * 50)
+            bill_content.append("")
+            
+            # Bill info
+            bill_content.append(f"Date: {bill_date:<20} Bill No: {bill_details['bill_number']}")
+            bill_content.append("-" * 50)
+            bill_content.append("")
+            
+            # Items table - simple format for carbon printer
+            bill_content.append("ITEM NAME                QTY   PRICE    TOTAL")
+            bill_content.append("-" * 50)
+            
+            for item in bill_details['items']:
+                # Truncate long item names for carbon printer
+                item_name = item['item_name'][:20] if len(item['item_name']) > 20 else item['item_name']
+                bill_content.append(f"{item_name:<20} {item['quantity']:>3}  Rs.{item['unit_price']:>6.2f}  Rs.{item['total_price']:>6.2f}")
+            
+            bill_content.append("-" * 50)
+            bill_content.append(f"{'TOTAL:':<40} Rs.{bill_details['total_amount']:>6.2f}")
+            bill_content.append("")
+            
+            # Payment method
+            bill_content.append(f"Payment Method: {bill_details['payment_method'].upper()}")
+            bill_content.append("")
+            bill_content.append("Thank you for shopping with us!")
+            bill_content.append("Visit again soon!")
+            bill_content.append("")
+            bill_content.append("=" * 50)
+            
+            # Write to file
+            with open(txt_path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(bill_content))
+            
+            print(f"Carbon printer bill generated: {txt_path}")
+            return txt_path
+            
+        except Exception as e:
+            print(f"Error generating carbon printer bill: {e}")
+            return None
+    
+    def print_to_carbon_printer(self, bill_path: str, printer_name: str = None) -> bool:
+        """Print bill directly to carbon printer"""
+        try:
+            import subprocess
+            import platform
+            
+            print(f"Printing to carbon printer: {bill_path}")
+            
+            # Check if file exists
+            if not os.path.exists(bill_path):
+                print(f"Bill file not found: {bill_path}")
+                return False
+            
+            system = platform.system()
+            
+            if system == "Windows":
+                # Windows - use copy command for carbon printers
+                if printer_name:
+                    # Print to specific printer
+                    cmd = f'copy "{bill_path}" "{printer_name}"'
+                else:
+                    # Print to default printer (usually LPT1 for carbon printers)
+                    cmd = f'copy "{bill_path}" LPT1'
+                
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                
+                if result.returncode == 0:
+                    print("Successfully printed to carbon printer")
+                    return True
+                else:
+                    print(f"Print error: {result.stderr}")
+                    return False
+                    
+            elif system == "Linux":
+                # Linux - use lp command
+                if printer_name:
+                    cmd = ['lp', '-d', printer_name, bill_path]
+                else:
+                    cmd = ['lp', bill_path]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode == 0:
+                    print("Successfully printed to carbon printer")
+                    return True
+                else:
+                    print(f"Print error: {result.stderr}")
+                    return False
+                    
+            elif system == "Darwin":  # macOS
+                # macOS - use lpr command
+                if printer_name:
+                    cmd = ['lpr', '-P', printer_name, bill_path]
+                else:
+                    cmd = ['lpr', bill_path]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode == 0:
+                    print("Successfully printed to carbon printer")
+                    return True
+                else:
+                    print(f"Print error: {result.stderr}")
+                    return False
+            
+            else:
+                print(f"Unsupported operating system: {system}")
+                return False
+                
+        except Exception as e:
+            print(f"Error printing to carbon printer: {e}")
+            return False

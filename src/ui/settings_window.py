@@ -50,6 +50,26 @@ class SettingsWindow(ttk.Frame):
         self.auto_save_var = tk.BooleanVar()
         ttk.Checkbutton(auto_save_frame, text="Enable auto-save", variable=self.auto_save_var).pack(anchor="w")
         
+        # Carbon Printer settings
+        printer_frame = ttk.LabelFrame(left_frame, text="Carbon Printer Settings", padding="10")
+        printer_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        self.carbon_printer_var = tk.BooleanVar()
+        ttk.Checkbutton(printer_frame, text="Enable Carbon Printer Mode", variable=self.carbon_printer_var).pack(anchor="w")
+        
+        # Printer name entry
+        printer_name_frame = ttk.Frame(printer_frame)
+        printer_name_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        ttk.Label(printer_name_frame, text="Printer Name:").pack(side=tk.LEFT, padx=(0, 5))
+        self.printer_name_var = tk.StringVar()
+        printer_entry = ttk.Entry(printer_name_frame, textvariable=self.printer_name_var, width=20)
+        printer_entry.pack(side=tk.LEFT)
+        
+        # Help text
+        help_label = ttk.Label(printer_frame, text="Leave empty for default printer (LPT1)", font=("Arial", 8), foreground="gray")
+        help_label.pack(anchor="w", pady=(5, 0))
+        
         # Window settings
         window_frame = ttk.LabelFrame(left_frame, text="Window Settings", padding="10")
         window_frame.pack(fill=tk.X, pady=(0, 20))
@@ -139,6 +159,8 @@ class SettingsWindow(ttk.Frame):
             # Load general settings
             self.theme_var.set(self.config.get("theme", "light"))
             self.auto_save_var.set(self.config.get("auto_save", True))
+            self.carbon_printer_var.set(self.config.get("carbon_printer_mode", False))
+            self.printer_name_var.set(self.config.get("carbon_printer_name", ""))
             self.width_var.set(str(self.config.get("window_width", 1200)))
             self.height_var.set(str(self.config.get("window_height", 800)))
             
@@ -174,6 +196,8 @@ class SettingsWindow(ttk.Frame):
             # Save general settings to config
             self.config.set("theme", self.theme_var.get())
             self.config.set("auto_save", self.auto_save_var.get())
+            self.config.set("carbon_printer_mode", self.carbon_printer_var.get())
+            self.config.set("carbon_printer_name", self.printer_name_var.get().strip())
             self.config.set("window_width", width)
             self.config.set("window_height", height)
             
@@ -203,6 +227,8 @@ class SettingsWindow(ttk.Frame):
                 # Reset general settings
                 self.theme_var.set("light")
                 self.auto_save_var.set(True)
+                self.carbon_printer_var.set(False)
+                self.printer_name_var.set("")
                 self.width_var.set("1200")
                 self.height_var.set("800")
                 

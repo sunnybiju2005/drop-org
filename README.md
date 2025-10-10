@@ -26,6 +26,7 @@ A comprehensive desktop billing application for clothing shops built with Python
 - **Barcode Scanning**: Support for USB barcode scanners with auto-add to cart
 - **Manual Code Entry**: Type item codes manually with instant cart addition
 - **PDF Bill Generation**: Professional bill format matching shop requirements
+- **Carbon Printer Support**: Optimized text format for dot matrix/carbon printers
 - **Instant Bill Processing**: Automatic save and print without confirmations
 - **Easy Date Selection**: Calendar picker with quick date buttons
 - **Data Export**: Export billing data to CSV format
@@ -79,6 +80,56 @@ Most USB barcode scanners work as "keyboard wedge" devices, meaning they input s
 - **Real-time Status**: Shows scanning progress and item addition status
 - **Error Handling**: Displays clear messages for invalid/unfound barcodes
 - **Focus Management**: Automatically returns focus to scanner input after each scan
+
+## Carbon Printer Support
+
+The application includes specialized support for carbon printers (dot matrix printers) commonly used in retail environments.
+
+### Carbon Printer Features
+- **Optimized Text Format**: Simple, clean text layout perfect for carbon printers
+- **Direct Printing**: Automatic printing to carbon printer without PDF conversion
+- **Printer Configuration**: Easy setup through Settings → Carbon Printer Settings
+- **Cross-Platform Support**: Works on Windows, Linux, and macOS
+- **Fallback Options**: Graceful fallback if printer is unavailable
+
+### Carbon Printer Setup
+1. **Enable Carbon Printer Mode**: Go to Admin → Settings → Carbon Printer Settings
+2. **Configure Printer**: 
+   - Check "Enable Carbon Printer Mode"
+   - Enter printer name (leave empty for default LPT1)
+3. **Test Printing**: Generate a test bill to verify printer connection
+
+### Carbon Printer Format
+The carbon printer generates bills in a simple text format:
+```
+==================================================
+        DROP
+      DRESS FOR LESS
+    City center, Naikkanal, Thrissur, Kerala 680001
+==================================================
+
+Date: 10/10/2025           Bill No: BILL202510040001
+--------------------------------------------------
+
+ITEM NAME                QTY   PRICE    TOTAL
+--------------------------------------------------
+Cotton T-Shirt         2  Rs.299.00  Rs.598.00
+Denim Jeans            1  Rs.899.00  Rs.899.00
+--------------------------------------------------
+TOTAL:                                   Rs.1497.00
+
+Payment Method: CASH
+
+Thank you for shopping with us!
+Visit again soon!
+
+==================================================
+```
+
+### Printer Configuration
+- **Windows**: Uses `copy` command to LPT1 or specified printer
+- **Linux**: Uses `lp` command for CUPS printers
+- **macOS**: Uses `lpr` command for network/local printers
 
 ## Professional Desktop Application
 
